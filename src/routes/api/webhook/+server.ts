@@ -11,6 +11,7 @@ import type { PostmarkWebhookPayload } from '$lib/types/postmark';
 export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const payload: PostmarkWebhookPayload = await request.json();
+		 
 
 		const isValid = validatePostmarkWebhook(payload);
 		if (!isValid) {
@@ -25,9 +26,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				if (result) {
 					console.log(`Async email processing finished for ${result.id}, status: ${result.status}`);
 				} else {
-					console.log(
-						'Async email processing finished, but no record was returned (อาจจะเกิดข้อผิดพลาดระหว่างการประมวลผล).'
-					);
+					console.log('Async email processing finished, but no record was returned.');
 				}
 			})
 			.catch((error) => {

@@ -1,70 +1,50 @@
-import { extractEventsWithAI } from './ai.js'; // .js extension might be needed for SvelteKit/Vite resolution with TS files
+import { extractEventsWithAI } from './ai.js';
 import { generateICS } from './calendar.js';
 import { sendResponseEmail } from './postmark.js';
 import { kv } from '@vercel/kv';
 import { v4 as uuidv4 } from 'uuid';
-import type { EventRecord, ExtractedEvent } from '$lub/types/eventRecord'; // Assuming you might create a central types file
-// If not, define interfaces directly or import from ai.ts/calendar.ts if exported and suitable
+import type { EventRecord, ExtractedEvent } from '$lib/types/eventRecord';
+import type {
+	PostmarkWebhookPayload,
+	PostmarkAttachment as WebhookPostmarkAttachment
+} from '$lib/types/postmark'; // Renamed to avoid conflict if any local usage remains essential, but ideally fully replace.
 
-// Define structure for Postmark attachments (subset of fields we care about)
-// This could also be imported from a central types file or from ai.ts if defined there broadly enough
-interface PostmarkAttachment {
-	Name: string;
-	Content: string; // Base64 encoded
-	ContentType: string;
-	ContentLength: number;
-	// Add other fields if necessary from Postmark's actual attachment structure
-}
-
-// Define structure for the incoming Postmark payload (subset of fields we use)
-interface PostmarkPayload {
-	From: string;
-	FromFull?: { Email: string; Name?: string };
-	Subject?: string;
-	TextBody?: string;
-	HtmlBody?: string;
-	Attachments?: PostmarkAttachment[];
-	Date?: string; // ISO Date string
-	MessageID?: string;
-	// Add other fields as needed
-}
-
-// Define a more specific type for the data passed to AI, based on PostmarkPayload
+// Define a more specific type for the data passed to AI, based on PostmarkWebhookPayload
 interface EmailDataForAI {
 	id: string;
-	from: string;
+	from: string; // Ensure this is always a string
 	subject?: string;
 	textBody?: string;
 	htmlBody?: string;
-	attachments?: PostmarkAttachment[];
+	attachments?: WebhookPostmarkAttachment[]; // Use the imported type
 	receivedAt: string;
 	messageId?: string;
 }
 
-// Re-define or import ExtractedEvent if not using a central types/eventRecord.ts
-// For this example, let's assume it's similar to what ai.ts expects.
-// interface ExtractedEvent {
-//   title: string;
-//   startDate: string;
-//   endDate: string;
-//   location?: string;
-//   description?: string;
-//   timezone?: string;
-// }
-
 export async function processInboundEmail(
-	postmarkPayload: PostmarkPayload
+	postmarkPayload: PostmarkWebhookPayload
 ): Promise<EventRecord | void> {
-	console.log('Processing inbound email from:', postmarkPayload.From);
+	// Ensure 'from' email is available
+	const fromEmail = postmarkPayload.FromFull?.Email || postmarkPayload.From;
+	if (!fromEmail) {
+		console.error(
+			'No "From" email address found in Postmark payload. Skipping processing.',
+			postmarkPayload
+		);
+		// Optionally, store a minimal error record or notify an admin
+		// For now, we'll just return, Postmark will eventually stop retrying if it gets a 200 from the webhook.
+		return;
+	}
+	console.log('Processing inbound email from:', fromEmail);
 	const eventId = `evt_${uuidv4()}`;
 
 	const emailData: EmailDataForAI = {
 		id: eventId,
-		from: postmarkPayload.FromFull?.Email || postmarkPayload.From,
+		from: fromEmail,
 		subject: postmarkPayload.Subject,
 		textBody: postmarkPayload.TextBody,
 		htmlBody: postmarkPayload.HtmlBody,
-		attachments: postmarkPayload.Attachments,
+		attachments: postmarkPayload.Attachments, // This should now align
 		receivedAt: postmarkPayload.Date || new Date().toISOString(),
 		messageId: postmarkPayload.MessageID
 	};
@@ -90,52 +70,79 @@ export async function processInboundEmail(
 	try {
 		await kv.set(`event:${eventId}`, initialRecord);
 		console.log(`Initial event record ${eventId} stored.`);
-	} catch (dbError: any) {
-		console.error(`Failed to store initial event record ${eventId}:`, dbError);
+	} catch (dbError: unknown) {
+		console.error(
+			`Failed to store initial event record ${eventId}:`,
+			dbError instanceof Error ? dbError.message : dbError
+		);
+		// If we can't store the initial record, we probably shouldn't proceed.
+		// However, the webhook should ideally still return 200 to Postmark to prevent retries if this is a persistent DB issue.
+		// For now, let the error be logged, and the function will effectively stop here for this email.
+		return; // Or rethrow if Postmark retries are desired for this kind of failure.
 	}
 
 	try {
-		const aiResult = await extractEventsWithAI(emailData); // ai.ts expects EmailData (ensure fields match)
-		const extractedEvents: ExtractedEvent[] = aiResult.events; // ai.js should return { events: [...] }
+		const aiResult = await extractEventsWithAI(emailData);
+		const extractedEvents: ExtractedEvent[] = aiResult.events;
+
+		const currentRecord = (await kv.get(`event:${eventId}`)) as EventRecord | null;
+		if (!currentRecord) {
+			console.error(`Event record ${eventId} not found after initial set. This should not happen.`);
+			return; // Critical error, stop processing
+		}
 
 		if (!extractedEvents || extractedEvents.length === 0) {
 			console.log(`No events extracted by AI for ${eventId}.`);
-			await kv.patch(`event:${eventId}`, {
-				status: 'processed_no_events',
-				processedAt: new Date().toISOString(),
-				extractedEvents: []
-			});
-			return {
-				...initialRecord,
+			const noEventsUpdate: Partial<EventRecord> = {
 				status: 'processed_no_events',
 				processedAt: new Date().toISOString(),
 				extractedEvents: []
 			};
+			await kv.set(`event:${eventId}`, { ...currentRecord, ...noEventsUpdate });
+			return {
+				...currentRecord,
+				...noEventsUpdate
+			} as EventRecord;
 		}
 
 		console.log(`AI extracted ${extractedEvents.length} event(s) for ${eventId}.`);
 
-		const icsContent = await generateICS(extractedEvents); // calendar.ts expects CalendarAppEvent[]
+		const icsContent = await generateICS(extractedEvents);
 		if (!icsContent) {
 			console.warn(`ICS generation returned null for ${eventId}.`);
-			const errorState: Partial<EventRecord> = {
+			const icsErrorUpdate: Partial<EventRecord> = {
 				status: 'error_ics_generation',
 				processedAt: new Date().toISOString(),
 				extractedEvents,
 				error: 'ICS generation failed or produced no content'
 			};
-			await kv.patch(`event:${eventId}`, errorState);
-			// Consider returning the record with error state
-			return { ...initialRecord, ...errorState, extractedEvents } as EventRecord;
+			const recordForIcsError = (await kv.get(`event:${eventId}`)) as EventRecord | null;
+			if (recordForIcsError) {
+				await kv.set(`event:${eventId}`, { ...recordForIcsError, ...icsErrorUpdate });
+				return { ...recordForIcsError, ...icsErrorUpdate } as EventRecord;
+			}
+			// If record is somehow gone, log and return basic error state
+			return { ...initialRecord, ...icsErrorUpdate, extractedEvents } as EventRecord;
 		}
 
-		const finalEventRecord: EventRecord = {
-			...initialRecord,
+		const finalRecordUpdate: Partial<EventRecord> = {
 			extractedEvents,
 			icsFile: icsContent,
 			status: 'processed',
 			processedAt: new Date().toISOString()
 		};
+
+		const recordBeforeFinalSet = (await kv.get(`event:${eventId}`)) as EventRecord | null;
+		if (!recordBeforeFinalSet) {
+			console.error(
+				`Event record ${eventId} not found before final update. This should not happen.`
+			);
+			// Fallback to initial record, though this indicates a problem
+			await kv.set(`event:${eventId}`, { ...initialRecord, ...finalRecordUpdate });
+			return { ...initialRecord, ...finalRecordUpdate } as EventRecord;
+		}
+
+		const finalEventRecord: EventRecord = { ...recordBeforeFinalSet, ...finalRecordUpdate };
 		await kv.set(`event:${eventId}`, finalEventRecord);
 		console.log(`Event record ${eventId} updated with processed data.`);
 
@@ -154,25 +161,34 @@ export async function processInboundEmail(
 		console.log(`Response email sent for ${eventId}.`);
 
 		return finalEventRecord;
-	} catch (processingError: any) {
-		console.error(`Error during processing for event ${eventId}:`, processingError);
-		const errorDetails: Partial<EventRecord> = {
+	} catch (processingError: unknown) {
+		console.error(
+			`Error during processing for event ${eventId}:`,
+			processingError instanceof Error ? processingError.message : processingError
+		);
+		const errorDetailsUpdate: Partial<EventRecord> = {
 			status: 'error',
-			error: processingError.message || 'Unknown processing error',
+			error:
+				processingError instanceof Error ? processingError.message : 'Unknown processing error',
 			processedAt: new Date().toISOString()
 		};
 		try {
-			await kv.patch(`event:${eventId}`, errorDetails);
-		} catch (dbUpdateError: any) {
-			console.error(`Failed to update event record ${eventId} with error status:`, dbUpdateError);
+			const recordForErrorUpdate = (await kv.get(`event:${eventId}`)) as EventRecord | null;
+			if (recordForErrorUpdate) {
+				await kv.set(`event:${eventId}`, { ...recordForErrorUpdate, ...errorDetailsUpdate });
+				return { ...recordForErrorUpdate, ...errorDetailsUpdate } as EventRecord;
+			}
+			// Fallback: update initial record, though this state might be inconsistent if some processing occurred
+			return { ...initialRecord, ...errorDetailsUpdate } as EventRecord;
+		} catch (dbUpdateError: unknown) {
+			console.error(
+				`Failed to update event record ${eventId} with error status:`,
+				dbUpdateError instanceof Error ? dbUpdateError.message : dbUpdateError
+			);
 		}
-		// For the caller (webhook), we might not want to re-throw and cause a non-200 response to Postmark
-		// Instead, log it and let the webhook return 200. The error is stored in KV.
-		// However, if the error is critical before KV update, throwing might be needed.
-		// For now, it does not re-throw, implying the webhook will still return 200 if this point is reached.
-		return { ...initialRecord, ...errorDetails } as EventRecord; // Return the record with error status
+		// Return the record with error status, trying to use initialRecord as base if current one couldn't be fetched.
+		return { ...initialRecord, ...errorDetailsUpdate } as EventRecord;
 	}
 }
 
 // Consider creating src/lib/types/eventRecord.ts with:
-

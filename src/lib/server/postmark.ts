@@ -39,8 +39,8 @@ export async function sendResponseEmail(
 		const result = await client.sendEmail(message);
 		console.log('Response email sent successfully:', result);
 		return result;
-	} catch (error: any) {
-		console.error('Failed to send response email:', error);
+	} catch (error: unknown) {
+		console.error('Failed to send response email:', error instanceof Error ? error.message : error);
 		// Rethrow or handle as postmark.Errors.PostmarkError if more specific error handling is needed
 		throw error;
 	}
@@ -49,6 +49,7 @@ export async function sendResponseEmail(
 // Placeholder for webhook validation logic
 // Postmark payload can be complex, using 'any' for now for MVP
 export function validatePostmarkWebhook(payload: PostmarkWebhookPayload): boolean {
+	console.log('Received payload for validation (placeholder):', payload);
 	// Basic validation for now, can be expanded with signature verification
 	// For signature verification, you'd compare a signature in the headers
 	// (e.g., X-Postmark-Signature) with a signature you compute using a shared secret.
