@@ -11,6 +11,7 @@ interface Attachment {
 	Name: string;
 	Content: string; // Base64 encoded content
 	ContentType: string;
+	ContentID: string;
 }
 
 export async function sendResponseEmail(
@@ -29,7 +30,8 @@ export async function sendResponseEmail(
 				{
 					Name: 'event.ics',
 					Content: Buffer.from(icsAttachmentContent).toString('base64'), // Buffer.from is fine in Node.js environment
-					ContentType: 'text/calendar'
+					ContentType: 'text/calendar',
+					ContentID: ''
 				} as Attachment // Cast to our defined Attachment type or ensure it matches Postmark's expected type
 			]
 		};
