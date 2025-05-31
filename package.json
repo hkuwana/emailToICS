@@ -51,6 +51,8 @@
 	},
 	"dependencies": {
 		"@inlang/paraglide-js": "^2.0.0",
+		"@oslojs/crypto": "^1.0.1",
+		"@oslojs/encoding": "^1.1.0",
 		"@types/uuid": "^10.0.0",
 		"drizzle-orm": "^0.40.0",
 		"postgres": "^3.4.5",
