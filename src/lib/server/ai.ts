@@ -1,6 +1,14 @@
 import OpenAI from 'openai';
-import pdfParse from 'pdf-parse';
-import { Buffer } from 'buffer'; // Import Buffer type for Node.js
+// import pdfParse from 'pdf-parse'; // Remove pdf-parse
+import * as PDFJS from 'pdfjs-dist/legacy/build/pdf.mjs'; // Import pdfjs-dist
+import { Buffer } from 'buffer';
+
+// Set workerSrc for Node.js environment.
+// The 'legacy' build is often more straightforward for CJS/ESM interop in Node.
+// We might need to adjust this path based on your project structure or how pdfjs-dist is bundled.
+// A common pattern is to also import the worker file itself to get its path.
+import workerSrc from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url';
+PDFJS.GlobalWorkerOptions.workerSrc = workerSrc;
 
 const openai = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY || ''
@@ -36,6 +44,26 @@ interface AIResponse {
 	events: ExtractedEvent[];
 }
 
+// Minimal interface for items from getTextContent()
+interface PdfTextItem {
+	str: string;
+	// Other properties like dir, width, height, transform, fontName are available but not used here
+}
+
+async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
+	const loadingTask = PDFJS.getDocument({ data: new Uint8Array(pdfBuffer) });
+	const pdfDocument = await loadingTask.promise;
+	let fullText = '';
+	for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
+		const page = await pdfDocument.getPage(pageNum);
+		const textContent = await page.getTextContent();
+		const pageText = textContent.items.map((item) => (item as PdfTextItem).str).join(' ');
+		fullText += pageText + '\n\n';
+		page.cleanup();
+	}
+	return fullText.trim();
+}
+
 export async function extractEventsWithAI(emailData: EmailData): Promise<AIResponse> {
 	let mainContent: string = emailData.textBody || '';
 	const imagePayloads: OpenAI.Chat.Completions.ChatCompletionContentPartImage[] = [];
@@ -57,8 +85,10 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 			} else if (attachment.ContentType === 'application/pdf' && attachment.Content) {
 				try {
 					const pdfBuffer: Buffer = Buffer.from(attachment.Content, 'base64');
-					const data = await pdfParse(pdfBuffer);
-					mainContent += `\n\n--- PDF Attachment: ${attachment.Name} ---\n${data.text}`;
+					// const data = await pdfParse(pdfBuffer); // Old way
+					// mainContent += `\n\n--- PDF Attachment: ${attachment.Name} ---\n${data.text}`; // Old way
+					const pdfText = await extractTextFromPdf(pdfBuffer);
+					mainContent += `\n\n--- PDF Attachment: ${attachment.Name} ---\n${pdfText}`;
 					console.log(`Extracted text from PDF attachment: ${attachment.Name}`);
 				} catch (error: unknown) {
 					console.error(
