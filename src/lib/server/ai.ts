@@ -1,5 +1,4 @@
 import OpenAI from 'openai';
-// import pdfParse from 'pdf-parse'; // Remove pdf-parse
 import * as PDFJS from 'pdfjs-dist/legacy/build/pdf.mjs'; // Import pdfjs-dist
 import { Buffer } from 'buffer';
 
