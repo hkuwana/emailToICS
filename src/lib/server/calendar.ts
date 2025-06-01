@@ -1,4 +1,4 @@
-import { createEvents, EventAttributes } from 'ics';
+import { createEvents, type EventAttributes } from 'ics';
 
 // Define a more specific type for the events we expect to process
 interface CalendarAppEvent {
@@ -17,29 +17,27 @@ export async function generateICS(events: CalendarAppEvent[]): Promise<string | 
 	}
 
 	const icsEvents: EventAttributes[] = events
-		.map((event) => {
+		.map((event): EventAttributes | null => {
 			const startDate = new Date(event.startDate);
 			const endDate = new Date(event.endDate);
 
-			// Basic validation for dates
 			if (isNaN(startDate.valueOf()) || isNaN(endDate.valueOf())) {
 				console.warn(`Invalid date for event: ${event.title}. Skipping this event.`);
-				return null; // Skip invalid events
+				return null;
 			}
 
-			return {
+			const attributes: EventAttributes = {
 				title: event.title,
 				start: dateToArray(startDate),
 				end: dateToArray(endDate),
 				location: event.location,
 				description: event.description,
 				status: 'CONFIRMED'
-				// alarms: [
-				//   { action: 'display', description: 'Reminder', trigger: { hours: 2, before: true } }
-				// ]
+				// alarms: []
 			};
+			return attributes;
 		})
-		.filter((event): event is EventAttributes => event !== null); // Filter out nulls from invalid dates
+		.filter((event: EventAttributes | null): event is EventAttributes => event !== null);
 
 	if (icsEvents.length === 0) {
 		console.log('No valid events to generate ICS, returning null.');

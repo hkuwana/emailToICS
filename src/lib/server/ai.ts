@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import pdfParse from 'pdf-parse';
-import type { Buffer } from 'buffer'; // Import Buffer type for Node.js
+import { Buffer } from 'buffer'; // Import Buffer type for Node.js
 
 const openai = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY || ''
@@ -60,8 +60,11 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 					const data = await pdfParse(pdfBuffer);
 					mainContent += `\n\n--- PDF Attachment: ${attachment.Name} ---\n${data.text}`;
 					console.log(`Extracted text from PDF attachment: ${attachment.Name}`);
-				} catch (error: any) {
-					console.error(`Error parsing PDF ${attachment.Name}:`, error);
+				} catch (error: unknown) {
+					console.error(
+						`Error parsing PDF ${attachment.Name}:`,
+						error instanceof Error ? error.message : error
+					);
 					mainContent += `\n\n--- Error processing PDF attachment: ${attachment.Name} ---`;
 				}
 			}
@@ -140,8 +143,11 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 			}
 			return { events: [] };
 		}
-	} catch (error: any) {
-		console.error('Error calling OpenAI API or parsing response:', error);
+	} catch (error: unknown) {
+		console.error(
+			'Error calling OpenAI API or parsing response:',
+			error instanceof Error ? error.message : error
+		);
 		return { events: [] };
 	}
 }
