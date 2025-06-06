@@ -11,7 +11,7 @@ import workerSrc from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url';
 PDFJS.GlobalWorkerOptions.workerSrc = workerSrc;
 
 const openai = new OpenAI({
-	apiKey: OPENAI_API_KEY || ''
+	apiKey: OPENAI_API_KEY
 });
 
 // Define structure for Postmark attachments (subset of fields we care about)
@@ -102,10 +102,10 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 	}
 
 	const userMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
-	let modelToUse: string = OPENAI_TEXT_MODEL || 'o4-mini-2025-04-16';
+	let modelToUse: string = OPENAI_TEXT_MODEL;
 
 	if (imagePayloads.length > 0) {
-		modelToUse = OPENAI_VISION_MODEL || 'o4-mini-2025-04-16';
+		modelToUse = OPENAI_VISION_MODEL;
 		const visionPrompt = `
       Extract calendar events from the provided email content and/or images.
       Focus on identifying event details like title, start date, end date, location, and description.

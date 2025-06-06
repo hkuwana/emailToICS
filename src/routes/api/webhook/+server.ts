@@ -11,7 +11,6 @@ import type { PostmarkWebhookPayload } from '$lib/types/postmark';
 export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const payload: PostmarkWebhookPayload = await request.json();
-		 
 
 		const isValid = validatePostmarkWebhook(payload);
 		if (!isValid) {

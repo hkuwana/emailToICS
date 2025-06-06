@@ -7,7 +7,7 @@ import type { EventRecord, ExtractedEvent } from '$lib/types/eventRecord';
 import type {
 	PostmarkWebhookPayload,
 	PostmarkAttachment as WebhookPostmarkAttachment
-} from '$lib/types/postmark'; // Renamed to avoid conflict if any local usage remains essential, but ideally fully replace.
+} from '$lib/types/postmark';
 
 // Define a more specific type for the data passed to AI, based on PostmarkWebhookPayload
 interface EmailDataForAI {
@@ -31,8 +31,6 @@ export async function processInboundEmail(
 			'No "From" email address found in Postmark payload. Skipping processing.',
 			postmarkPayload
 		);
-		// Optionally, store a minimal error record or notify an admin
-		// For now, we'll just return, Postmark will eventually stop retrying if it gets a 200 from the webhook.
 		return;
 	}
 	console.log('Processing inbound email from:', fromEmail);
@@ -44,7 +42,7 @@ export async function processInboundEmail(
 		subject: postmarkPayload.Subject,
 		textBody: postmarkPayload.TextBody,
 		htmlBody: postmarkPayload.HtmlBody,
-		attachments: postmarkPayload.Attachments, // This should now align
+		attachments: postmarkPayload.Attachments,
 		receivedAt: postmarkPayload.Date || new Date().toISOString(),
 		messageId: postmarkPayload.MessageID
 	};
@@ -75,10 +73,7 @@ export async function processInboundEmail(
 			`Failed to store initial event record ${eventId}:`,
 			dbError instanceof Error ? dbError.message : dbError
 		);
-		// If we can't store the initial record, we probably shouldn't proceed.
-		// However, the webhook should ideally still return 200 to Postmark to prevent retries if this is a persistent DB issue.
-		// For now, let the error be logged, and the function will effectively stop here for this email.
-		return; // Or rethrow if Postmark retries are desired for this kind of failure.
+		return;
 	}
 
 	try {
@@ -121,7 +116,6 @@ export async function processInboundEmail(
 				await kv.set(`event:${eventId}`, { ...recordForIcsError, ...icsErrorUpdate });
 				return { ...recordForIcsError, ...icsErrorUpdate } as EventRecord;
 			}
-			// If record is somehow gone, log and return basic error state
 			return { ...initialRecord, ...icsErrorUpdate, extractedEvents } as EventRecord;
 		}
 
@@ -137,7 +131,6 @@ export async function processInboundEmail(
 			console.error(
 				`Event record ${eventId} not found before final update. This should not happen.`
 			);
-			// Fallback to initial record, though this indicates a problem
 			await kv.set(`event:${eventId}`, { ...initialRecord, ...finalRecordUpdate });
 			return { ...initialRecord, ...finalRecordUpdate } as EventRecord;
 		}
@@ -178,7 +171,6 @@ export async function processInboundEmail(
 				await kv.set(`event:${eventId}`, { ...recordForErrorUpdate, ...errorDetailsUpdate });
 				return { ...recordForErrorUpdate, ...errorDetailsUpdate } as EventRecord;
 			}
-			// Fallback: update initial record, though this state might be inconsistent if some processing occurred
 			return { ...initialRecord, ...errorDetailsUpdate } as EventRecord;
 		} catch (dbUpdateError: unknown) {
 			console.error(
@@ -186,7 +178,6 @@ export async function processInboundEmail(
 				dbUpdateError instanceof Error ? dbUpdateError.message : dbUpdateError
 			);
 		}
-		// Return the record with error status, trying to use initialRecord as base if current one couldn't be fetched.
 		return { ...initialRecord, ...errorDetailsUpdate } as EventRecord;
 	}
 }
