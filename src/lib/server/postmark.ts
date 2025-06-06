@@ -1,4 +1,4 @@
-import postmark from 'postmark';
+import * as postmark from 'postmark';
 import type { PostmarkWebhookPayload } from '$lib/types/postmark';
 import { POSTMARK_SERVER_TOKEN, SENDER_EMAIL_ADDRESS, WEBHOOK_SECRET } from '$env/static/private';
 
@@ -23,7 +23,7 @@ export async function sendResponseEmail(
 ): Promise<postmark.Models.MessageSendingResponse> {
 	try {
 		const message: postmark.Models.Message = {
-			From:  SENDER_EMAIL_ADDRESS || 'sender@example.com', // Ensure this is a registered sender signature
+			From: SENDER_EMAIL_ADDRESS || 'sender@example.com', // Ensure this is a registered sender signature
 			To: to,
 			Subject: subject,
 			HtmlBody: htmlBody,
@@ -56,7 +56,7 @@ export function validatePostmarkWebhook(payload: PostmarkWebhookPayload): boolea
 	// (e.g., X-Postmark-Signature) with a signature you compute using a shared secret.
 	// This example assumes a simple shared secret in the payload or a specific header.
 	// It's highly recommended to implement proper signature verification for production.
-	console.log('Webhook secret from env:',  WEBHOOK_SECRET);
+	console.log('Webhook secret from env:', WEBHOOK_SECRET);
 	// This is a placeholder. In a real scenario, you'd verify a signature.
 	// Example using crypto module (ensure it's imported if used):
 	// import crypto from 'crypto';
