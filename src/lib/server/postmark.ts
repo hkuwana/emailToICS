@@ -1,6 +1,6 @@
 import postmark from 'postmark';
 import type { PostmarkWebhookPayload } from '$lib/types/postmark';
-import { POSTMARK_SERVER_TOKEN } from '$env/static/private';
+import { POSTMARK_SERVER_TOKEN, SENDER_EMAIL_ADDRESS, WEBHOOK_SECRET } from '$env/static/private';
 
 // Initialize Postmark client
 // Ensure POSTMARK_SERVER_TOKEN is set in your environment variables
