@@ -102,7 +102,7 @@ export async function processInboundEmail(
 
 		console.log(`AI extracted ${extractedEvents.length} event(s) for ${eventId}.`);
 
-		const icsContent = await generateICS(extractedEvents);
+		const icsContent = generateICS(extractedEvents);
 		if (!icsContent) {
 			console.warn(`ICS generation returned null for ${eventId}.`);
 			const icsErrorUpdate: Partial<EventRecord> = {

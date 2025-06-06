@@ -1,65 +1,12 @@
 import { createEvents, type EventAttributes } from 'ics';
+import type { ExtractedEvent } from '$lib/types/eventRecord';
 
-// Define a more specific type for the events we expect to process
-interface CalendarAppEvent {
-	title: string;
-	startDate: string; // Expecting ISO string or a format Date constructor can parse
-	endDate: string; // Expecting ISO string or a format Date constructor can parse
-	location?: string;
-	description?: string;
-	// We can add other ICS-specific fields here if needed, like timezone
-}
-
-export async function generateICS(events: CalendarAppEvent[]): Promise<string | null> {
-	if (!events || events.length === 0) {
-		console.log('No events provided to generateICS, returning null.');
-		return null;
-	}
-
-	const icsEvents: EventAttributes[] = events
-		.map((event): EventAttributes | null => {
-			const startDate = new Date(event.startDate);
-			const endDate = new Date(event.endDate);
-
-			if (isNaN(startDate.valueOf()) || isNaN(endDate.valueOf())) {
-				console.warn(`Invalid date for event: ${event.title}. Skipping this event.`);
-				return null;
-			}
-
-			const attributes: EventAttributes = {
-				title: event.title,
-				start: dateToArray(startDate),
-				end: dateToArray(endDate),
-				location: event.location,
-				description: event.description,
-				status: 'CONFIRMED'
-				// alarms: []
-			};
-			return attributes;
-		})
-		.filter((event: EventAttributes | null): event is EventAttributes => event !== null);
-
-	if (icsEvents.length === 0) {
-		console.log('No valid events to generate ICS, returning null.');
-		return null;
-	}
-
-	const { error, value } = createEvents(icsEvents);
-
-	if (error) {
-		console.error('ICS generation failed:', error);
-		// error can be an Error object or string, ensure we access message safely
-		const errorMessage = typeof error === 'string' ? error : (error as Error).message;
-		throw new Error(`ICS generation failed: ${errorMessage}`);
-	}
-
-	return value || null; // Ensure we return null if value is undefined
-}
-
-// Returns a tuple [year, month, day, hour, minute]
+/**
+ * Converts a Date object into a date-time array format required by the 'ics' package.
+ * @param date The date to convert.
+ * @returns An array of numbers: [year, month, day, hour, minute].
+ */
 function dateToArray(date: Date): [number, number, number, number, number] {
-	// The previous version already handled invalid dates passed to it by creating a 'now'
-	// but it's better to ensure valid dates before calling this utility.
 	return [
 		date.getFullYear(),
 		date.getMonth() + 1,
@@ -67,4 +14,54 @@ function dateToArray(date: Date): [number, number, number, number, number] {
 		date.getHours(),
 		date.getMinutes()
 	];
+}
+
+/**
+ * Generates an iCalendar (.ics) file content string from an array of event objects.
+ * @param events An array of events extracted from an email.
+ * @returns A string containing the .ics file content, or null if no valid events were provided.
+ * @throws Will throw an error if the 'ics' package fails to generate the calendar data.
+ */
+export function generateICS(events: ExtractedEvent[]): string | null {
+	if (!events || events.length === 0) {
+		console.log('No events provided to generateICS, returning null.');
+		return null;
+	}
+
+	const icsEvents: EventAttributes[] = events
+		.map((event) => {
+			const startDate = new Date(event.startDate);
+			const endDate = new Date(event.endDate);
+
+			if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+				console.warn(
+					`Skipping event with invalid date: "${event.title}" (Start: ${event.startDate}, End: ${event.endDate})`
+				);
+				return null;
+			}
+
+			return {
+				title: event.title,
+				start: dateToArray(startDate),
+				end: dateToArray(endDate),
+				location: event.location,
+				description: event.description,
+				status: 'CONFIRMED'
+			} as EventAttributes;
+		})
+		.filter((e): e is EventAttributes => e !== null);
+
+	if (icsEvents.length === 0) {
+		console.log('All provided events had invalid dates. No ICS file will be generated.');
+		return null;
+	}
+
+	const { error, value } = createEvents(icsEvents);
+
+	if (error) {
+		console.error('Failed to create ICS file:', error);
+		throw error;
+	}
+
+	return value || null;
 }
