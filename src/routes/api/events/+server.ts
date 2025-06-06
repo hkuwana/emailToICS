@@ -15,10 +15,12 @@ export const GET: RequestHandler = async ({ url }) => {
 		let cursor: number = 0;
 		do {
 			// Note: The type for the scan result from '@vercel/kv' is [string, string[]], but since we're using a number cursor it should be [number, string[]].
-			// We cast the cursor to 'any' then to 'number' to work around potential type mismatches in different versions.
-			const result: [any, string[]] = await kv.scan(cursor, { match: 'event:*', count: 100 });
-			cursor = result[0] as number;
-			eventKeys.push(...result[1]);
+			const [newCursor, keys] = await kv.scan(cursor, { match: 'event:*', count: 100 });
+			cursor = parseInt(newCursor, 10);
+			if (isNaN(cursor)) {
+				cursor = 0;
+			}
+			eventKeys.push(...keys);
 		} while (cursor !== 0);
 
 		if (eventKeys.length === 0) {
@@ -36,8 +38,11 @@ export const GET: RequestHandler = async ({ url }) => {
 		userEvents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
 		return json(userEvents, { status: 200 });
-	} catch (error: any) {
-		console.error('Error fetching events:', error);
+	} catch (error) {
+		console.error(
+			'Error fetching events:',
+			error instanceof Error ? error.message : 'An unknown error occurred'
+		);
 		return json({ error: 'Failed to retrieve events' }, { status: 500 });
 	}
 };

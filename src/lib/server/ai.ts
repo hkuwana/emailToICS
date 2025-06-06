@@ -1,14 +1,5 @@
 import OpenAI from 'openai';
-import * as PDFJS from 'pdfjs-dist/legacy/build/pdf.mjs'; // Import pdfjs-dist
-import { Buffer } from 'buffer';
 import { OPENAI_API_KEY, OPENAI_TEXT_MODEL, OPENAI_VISION_MODEL } from '$env/static/private';
-
-// Set workerSrc for Node.js environment.
-// The 'legacy' build is often more straightforward for CJS/ESM interop in Node.
-// We might need to adjust this path based on your project structure or how pdfjs-dist is bundled.
-// A common pattern is to also import the worker file itself to get its path.
-import workerSrc from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url';
-PDFJS.GlobalWorkerOptions.workerSrc = workerSrc;
 
 const openai = new OpenAI({
 	apiKey: OPENAI_API_KEY
@@ -44,26 +35,6 @@ interface AIResponse {
 	events: ExtractedEvent[];
 }
 
-// Minimal interface for items from getTextContent()
-interface PdfTextItem {
-	str: string;
-	// Other properties like dir, width, height, transform, fontName are available but not used here
-}
-
-async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
-	const loadingTask = PDFJS.getDocument({ data: new Uint8Array(pdfBuffer) });
-	const pdfDocument = await loadingTask.promise;
-	let fullText = '';
-	for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
-		const page = await pdfDocument.getPage(pageNum);
-		const textContent = await page.getTextContent();
-		const pageText = textContent.items.map((item) => (item as PdfTextItem).str).join(' ');
-		fullText += pageText + '\n\n';
-		page.cleanup();
-	}
-	return fullText.trim();
-}
-
 export async function extractEventsWithAI(emailData: EmailData): Promise<AIResponse> {
 	let mainContent: string = emailData.textBody || '';
 	const imagePayloads: OpenAI.Chat.Completions.ChatCompletionContentPartImage[] = [];
@@ -82,21 +53,9 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 					}
 				});
 				console.log(`Prepared image attachment for AI: ${attachment.Name}`);
-			} else if (attachment.ContentType === 'application/pdf' && attachment.Content) {
-				try {
-					const pdfBuffer: Buffer = Buffer.from(attachment.Content, 'base64');
-					// const data = await pdfParse(pdfBuffer); // Old way
-					// mainContent += `\n\n--- PDF Attachment: ${attachment.Name} ---\n${data.text}`; // Old way
-					const pdfText = await extractTextFromPdf(pdfBuffer);
-					mainContent += `\n\n--- PDF Attachment: ${attachment.Name} ---\n${pdfText}`;
-					console.log(`Extracted text from PDF attachment: ${attachment.Name}`);
-				} catch (error: unknown) {
-					console.error(
-						`Error parsing PDF ${attachment.Name}:`,
-						error instanceof Error ? error.message : error
-					);
-					mainContent += `\n\n--- Error processing PDF attachment: ${attachment.Name} ---`;
-				}
+			} else if (attachment.ContentType === 'application/pdf') {
+				console.log(`Ignoring PDF attachment: ${attachment.Name}`);
+				mainContent += `\n\n--- PDF Attachment Ignored: ${attachment.Name} ---`;
 			}
 		}
 	}

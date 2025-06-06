@@ -9,6 +9,7 @@ import type { PostmarkWebhookPayload } from '$lib/types/postmark';
 // interface PostmarkWebhookPayload { /* ... define expected fields ... */ }
 
 export const POST: RequestHandler = async ({ request }) => {
+	console.log('Webhook received');
 	try {
 		const payload: PostmarkWebhookPayload = await request.json();
 

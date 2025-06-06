@@ -23,7 +23,7 @@ export async function sendResponseEmail(
 ): Promise<postmark.Models.MessageSendingResponse> {
 	try {
 		const message: postmark.Models.Message = {
-			From: SENDER_EMAIL_ADDRESS || 'sender@example.com', // Ensure this is a registered sender signature
+			From: SENDER_EMAIL_ADDRESS || 'events@voxlify.com', // Ensure this is a registered sender signature
 			To: to,
 			Subject: subject,
 			HtmlBody: htmlBody,
