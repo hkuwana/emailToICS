@@ -1,9 +1,10 @@
 import postmark from 'postmark';
 import type { PostmarkWebhookPayload } from '$lib/types/postmark';
+import { POSTMARK_SERVER_TOKEN } from '$env/static/private';
 
 // Initialize Postmark client
 // Ensure POSTMARK_SERVER_TOKEN is set in your environment variables
-const client = new postmark.ServerClient(process.env.POSTMARK_SERVER_TOKEN || '');
+const client = new postmark.ServerClient(POSTMARK_SERVER_TOKEN || '');
 
 export default client;
 

@@ -13,6 +13,9 @@ export default defineConfig({
 			outdir: './src/lib/paraglide'
 		})
 	],
+	ssr: {
+		noExternal: ['@vercel/kv']
+	},
 	test: {
 		workspace: [
 			{
