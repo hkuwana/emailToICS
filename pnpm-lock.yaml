@@ -29,6 +29,9 @@ importers:
       ics:
         specifier: ^3.8.1
         version: 3.8.1
+      openai:
+        specifier: ^5.1.1
+        version: 5.1.1(ws@8.18.2)
       pdfjs-dist:
         specifier: ^5.2.133
         version: 5.2.133
@@ -2143,6 +2146,18 @@ packages:
 
   nwsapi@2.2.20:
     resolution: {integrity: sha512-/ieB+mDe4MrrKMT8z+mQL8klXydZWGR5Dowt4RAGKbJ3kIGEx3X4ljUo+6V73IXtUPWgfOlU5B9MlGxFO5T+cA==}
+
+  openai@5.1.1:
+    resolution: {integrity: sha512-lgIdLqvpLpz8xPUKcEIV6ml+by74mbSBz8zv/AHHebtLn/WdpH4kdXT3/Q5uUKDHg3vHV/z9+G9wZINRX6rkDg==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.23.8
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
 
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
@@ -4540,6 +4555,10 @@ snapshots:
       abbrev: 3.0.1
 
   nwsapi@2.2.20: {}
+
+  openai@5.1.1(ws@8.18.2):
+    optionalDependencies:
+      ws: 8.18.2
 
   optionator@0.9.4:
     dependencies:
