@@ -29,7 +29,7 @@ export function generateICS(events: ExtractedEvent[]): string | null {
 	}
 
 	const icsEvents: EventAttributes[] = events
-		.map((event) => {
+		.map((event): EventAttributes | null => {
 			const startDate = new Date(event.startDate);
 			const endDate = new Date(event.endDate);
 
@@ -40,20 +40,35 @@ export function generateICS(events: ExtractedEvent[]): string | null {
 				return null;
 			}
 
+			let description = event.description || '';
+			if (event.timezone) {
+				const options: Intl.DateTimeFormatOptions = {
+					year: 'numeric',
+					month: 'long',
+					day: 'numeric',
+					hour: 'numeric',
+					minute: 'numeric',
+					hour12: true,
+					timeZone: event.timezone,
+					timeZoneName: 'short'
+				};
+				const formatter = new Intl.DateTimeFormat('en-US', options);
+				const startString = formatter.format(startDate);
+
+				const tzInfo = `\n\n(Event time is specified in ${event.timezone}: ${startString})`;
+				description += tzInfo;
+			}
+
 			const icsEvent: EventAttributes = {
 				title: event.title,
 				start: dateToArray(startDate),
-				end: dateToArray(endDate),
 				startInputType: 'utc',
+				end: dateToArray(endDate),
 				endInputType: 'utc',
 				location: event.location,
-				description: event.description,
+				description: description,
 				status: 'CONFIRMED'
 			};
-
-			if (event.timezone) {
-				icsEvent.tzid = event.timezone;
-			}
 
 			return icsEvent;
 		})
@@ -64,6 +79,7 @@ export function generateICS(events: ExtractedEvent[]): string | null {
 		return null;
 	}
 
+	console.log(`Generating ICS file with ${icsEvents.length} events.`);
 	const { error, value } = createEvents(icsEvents);
 
 	if (error) {
@@ -71,5 +87,6 @@ export function generateICS(events: ExtractedEvent[]): string | null {
 		throw error;
 	}
 
+	console.log('Successfully generated ICS file content.');
 	return value || null;
 }

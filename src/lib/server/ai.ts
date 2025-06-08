@@ -56,16 +56,24 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 				console.log(`Prepared image attachment for AI: ${attachment.Name}`);
 			} else if (attachment.ContentType === 'application/pdf' && attachment.Content) {
 				try {
-					const pdfParser = new PDFParser(this, 1);
+					const pdfParser = new PDFParser();
 					const pdfBuffer = Buffer.from(attachment.Content, 'base64');
 
+					console.log(`Starting to parse PDF attachment: ${attachment.Name}`);
 					const pdfText = await new Promise<string>((resolve, reject) => {
 						pdfParser.on('pdfParser_dataError', (errData) => {
 							console.error(`Error parsing PDF ${attachment.Name}:`, errData.parserError);
-							reject(new Error(errData.parserError));
+							reject(errData.parserError);
 						});
 						pdfParser.on('pdfParser_dataReady', () => {
-							resolve(pdfParser.getRawTextContent());
+							try {
+								const textContent = pdfParser.getRawTextContent();
+								console.log(`Successfully parsed PDF attachment: ${attachment.Name}`);
+								resolve(textContent);
+							} catch (e) {
+								console.error(`Error getting raw text content from PDF ${attachment.Name}:`, e);
+								reject(e);
+							}
 						});
 						pdfParser.parseBuffer(pdfBuffer);
 					});
