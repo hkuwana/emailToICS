@@ -1,10 +1,9 @@
 {
 	"functions": {
-		"src/routes/api/webhook/+server.ts": {
-			"maxDuration": 60
-		},
-		"src/routes/api/test-openai/+server.ts": {
-			"maxDuration": 60
+		"**": {
+			"maxDuration": 60,
+			"memory": 1024
 		}
-	}
+	},
+	"buildCommand": "npm run build"
 }
