@@ -1,4 +1,4 @@
-<script lang="ts	">
+<script lang="ts">
 	import { dev } from '$app/environment';
 
 	const emailAddress = '5e3e04a8a8393cb85b47907fcc0290d1@inbound.postmarkapp.com';
@@ -41,7 +41,7 @@
 								class="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-800"
 								>1</span
 							>
-							<span class="text-sm text-gray-700">Forward email with itinerary/PDF/images</span>
+							<span class="text-sm text-gray-700">Forward email with plain text itinerary</span>
 						</div>
 						<div class="flex items-center space-x-3">
 							<span
@@ -72,7 +72,21 @@
 							class="w-full cursor-pointer border-none bg-transparent text-center font-mono text-sm text-gray-900 outline-none focus:outline-none"
 						/>
 					</div>
-					<p class="text-xs opacity-90">Click to copy • Works with text, PDFs, images</p>
+					<p class="text-xs opacity-90">Click to copy • Currently supports plain text emails</p>
+				</div>
+
+				<!-- Future Features Notice -->
+				<div class="rounded-lg bg-yellow-50 p-4 border border-yellow-200">
+					<div class="flex items-start space-x-2">
+						<span class="text-yellow-600 mt-0.5">💡</span>
+						<div>
+							<h3 class="text-sm font-medium text-yellow-800">Coming Soon</h3>
+							<p class="text-xs text-yellow-700 mt-1">
+								PDF attachments and image processing are planned features. If you'd like these capabilities, 
+								<a href="mailto:feedback@emailcal.com" class="underline hover:no-underline">let us know</a>!
+							</p>
+						</div>
+					</div>
 				</div>
 			</div>
 
@@ -145,7 +159,7 @@
 						href="/test-openai"
 						class="inline-block rounded bg-red-500 px-3 py-1 text-xs text-white hover:bg-red-600"
 					>
-						🔧 Test OpenAI (Dev Only)
+						Test OpenAI (Dev Only)
 					</a>
 				</div>
 			{/if}
