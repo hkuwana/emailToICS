@@ -94,7 +94,14 @@ export async function sendNoEventsFoundEmail(
 // Placeholder for webhook validation logic
 // Postmark payload can be complex, using 'any' for now for MVP
 export function validatePostmarkWebhook(payload: PostmarkWebhookPayload): boolean {
-	console.log('Received payload for validation (placeholder):', payload);
+	// Basic validation - log only essential info, not the full payload
+	console.log('Webhook validation - payload summary:', {
+		from: payload.From,
+		subject: payload.Subject,
+		messageId: payload.MessageID,
+		attachmentCount: payload.Attachments?.length || 0
+	});
+
 	// Basic validation for now, can be expanded with signature verification
 	// For signature verification, you'd compare a signature in the headers
 	// (e.g., X-Postmark-Signature) with a signature you compute using a shared secret.
