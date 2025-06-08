@@ -212,7 +212,7 @@ ${processedContent}`;
 				model: modelToUse,
 				messages: userMessages,
 				response_format: { type: 'json_object' },
-				max_completion_tokens: 2000 // Reasonable limit for event extraction
+				max_completion_tokens: 4000 // Reasonable limit for event extraction
 			};
 
 			// Only add temperature for non-o1 models
