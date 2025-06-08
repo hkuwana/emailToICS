@@ -2,20 +2,9 @@ import OpenAI from 'openai';
 // import PDFParser from 'pdf2json';
 import { OPENAI_API_KEY, OPENAI_TEXT_MODEL, OPENAI_VISION_MODEL } from '$env/static/private';
 
-console.log('ai.ts module loading...');
-console.log(`OPENAI_API_KEY is set: ${!!OPENAI_API_KEY}`);
-console.log(`OPENAI_TEXT_MODEL: ${OPENAI_TEXT_MODEL}`);
-
-let openai: OpenAI;
-try {
-	openai = new OpenAI({
-		apiKey: OPENAI_API_KEY
-	});
-	console.log('OpenAI client initialized successfully.');
-} catch (e) {
-	console.error('CRITICAL: Failed to initialize OpenAI client.', e);
-	// We might want to throw here to ensure any calling function knows this failed.
-}
+const openai = new OpenAI({
+	apiKey: OPENAI_API_KEY
+});
 
 // Define structure for Postmark attachments (subset of fields we care about)
 interface PostmarkAttachment {
@@ -145,16 +134,11 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 	}
 
 	try {
-		const response = await openai.chat.completions.create(
-			{
-				model: modelToUse,
-				messages: userMessages,
-				response_format: { type: 'json_object' }
-			},
-			{
-				timeout: 14000 // 14 seconds, just under Vercel's 15s Hobby timeout
-			}
-		);
+		const response = await openai.chat.completions.create({
+			model: modelToUse,
+			messages: userMessages,
+			response_format: { type: 'json_object' }
+		});
 
 		console.log('OpenAI API call successful.');
 
