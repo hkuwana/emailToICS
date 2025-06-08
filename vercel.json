@@ -1,0 +1,10 @@
+{
+	"functions": {
+		"src/routes/api/webhook/+server.ts": {
+			"maxDuration": 60
+		},
+		"src/routes/api/test-openai/+server.ts": {
+			"maxDuration": 60
+		}
+	}
+}

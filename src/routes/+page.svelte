@@ -1,4 +1,6 @@
 <script lang="ts	">
+	import { dev } from '$app/environment';
+
 	const emailAddress = '5e3e04a8a8393cb85b47907fcc0290d1@inbound.postmarkapp.com';
 	let displayAddress = $state('5e3e04a8a8393cb85b47907fcc0290d1@inbound.postmarkapp.com');
 	let copied = $state(false);
@@ -137,6 +139,16 @@
 
 		<footer class="mt-8 text-center text-xs text-gray-500">
 			<p>Built because I was tired of manual calendar entry</p>
+			{#if dev}
+				<div class="mt-4">
+					<a
+						href="/test-openai"
+						class="inline-block rounded bg-red-500 px-3 py-1 text-xs text-white hover:bg-red-600"
+					>
+						🔧 Test OpenAI (Dev Only)
+					</a>
+				</div>
+			{/if}
 		</footer>
 	</div>
 </div>

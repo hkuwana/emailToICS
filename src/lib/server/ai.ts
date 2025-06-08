@@ -3,7 +3,8 @@ import OpenAI from 'openai';
 import { OPENAI_API_KEY, OPENAI_TEXT_MODEL, OPENAI_VISION_MODEL } from '$env/static/private';
 
 const openai = new OpenAI({
-	apiKey: OPENAI_API_KEY
+	apiKey: OPENAI_API_KEY,
+	timeout: 45000 // 45 seconds timeout for OpenAI calls
 });
 
 // Define structure for Postmark attachments (subset of fields we care about)
@@ -134,11 +135,19 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 	}
 
 	try {
+		console.log('Starting OpenAI API call with timeout...');
+		const startTime = Date.now();
+
 		const response = await openai.chat.completions.create({
 			model: modelToUse,
 			messages: userMessages,
-			response_format: { type: 'json_object' }
+			response_format: { type: 'json_object' },
+			max_completion_tokens: 2000, // Reasonable limit for event extraction
+			temperature: 0.1 // Lower temperature for more consistent results
 		});
+
+		const endTime = Date.now();
+		console.log(`OpenAI API call completed in ${endTime - startTime}ms`);
 
 		console.log('OpenAI API call successful.');
 
@@ -167,6 +176,21 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 		}
 	} catch (error: unknown) {
 		console.error('Error calling OpenAI API or parsing response:', error);
+
+		// Check if it's a timeout error
+		if (error instanceof Error) {
+			if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
+				console.error(
+					'OpenAI API call timed out - consider increasing timeout or optimizing prompt'
+				);
+			}
+			console.error('Error details:', {
+				name: error.name,
+				message: error.message,
+				stack: error.stack?.split('\n').slice(0, 3) // First 3 lines of stack trace
+			});
+		}
+
 		return { events: [] };
 	}
 }
