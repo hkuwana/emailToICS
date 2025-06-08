@@ -119,14 +119,28 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 		const userMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
 		let modelToUse: string = OPENAI_TEXT_MODEL;
 
+		// Fallback to more reliable model if the configured one seems problematic
+		if (!modelToUse || modelToUse === 'gpt-4.1') {
+			console.log('Using fallback model gpt-4-turbo instead of', modelToUse);
+			modelToUse = 'gpt-4-turbo';
+		}
+
 		console.log('Model selection and message building...');
 		console.log('OPENAI_TEXT_MODEL:', OPENAI_TEXT_MODEL);
 		console.log('OPENAI_VISION_MODEL:', OPENAI_VISION_MODEL);
+		console.log('Final model to use:', modelToUse);
 		console.log('Image payloads count:', imagePayloads.length);
 
 		if (imagePayloads.length > 0) {
 			console.log('Using vision model due to image attachments');
-			modelToUse = OPENAI_VISION_MODEL;
+			// Use vision model, with fallback if needed
+			let visionModel = OPENAI_VISION_MODEL;
+			if (!visionModel || visionModel === 'gpt-4.1') {
+				console.log('Using fallback vision model gpt-4-turbo instead of', visionModel);
+				visionModel = 'gpt-4-turbo';
+			}
+			modelToUse = visionModel;
+
 			const visionPrompt = `
       Extract calendar events from the provided email content and/or images.
       Focus on identifying event details like title, start date, end date, location, and description.
@@ -145,22 +159,35 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 			console.log(`Using vision model ${modelToUse} for image processing.`);
 		} else {
 			console.log('Using text model for text-only processing');
-			const prompt = `
-      Extract calendar events from this email content.
-      Return a JSON array of objects. Each object should represent an event and include these fields: 
-      - title (string)
-      - startDate (string, ISO 8601 format, e.g., YYYY-MM-DDTHH:mm:ssZ)
-      - endDate (string, ISO 8601 format, e.g., YYYY-MM-DDTHH:mm:ssZ)
-      - location (string, optional)
-      - description (string, optional)
-      - timezone (string, IANA timezone name like 'America/New_York', optional, try to infer if possible)
 
-      If you cannot determine a field, omit it or set to null. Ensure dates are fully qualified.
-      Current time context for relative dates (e.g., "tomorrow"): ${new Date().toISOString()}
-      Email Subject: ${emailData.subject || 'N/A'}
-      Email Body / PDF Text:
-      ${mainContent}
-    `;
+			// Truncate very long content to improve performance
+			const maxContentLength = 4000; // Reasonable limit for API efficiency
+			let processedContent = mainContent;
+			if (mainContent.length > maxContentLength) {
+				console.log(
+					`Content too long (${mainContent.length} chars), truncating to ${maxContentLength} chars`
+				);
+				processedContent =
+					mainContent.substring(0, maxContentLength) +
+					'\n\n[Content truncated for processing efficiency]';
+			}
+
+			const prompt = `Extract calendar events from this email. Return JSON with "events" array.
+
+Each event needs:
+- title (string)  
+- startDate (ISO 8601: YYYY-MM-DDTHH:mm:ssZ)
+- endDate (ISO 8601: YYYY-MM-DDTHH:mm:ssZ)
+- location (optional)
+- description (optional)
+
+Current time for relative dates: ${new Date().toISOString()}
+
+Subject: ${emailData.subject || 'N/A'}
+
+Content:
+${processedContent}`;
+
 			userMessages.push({ role: 'user', content: prompt });
 			console.log(`Using text model ${modelToUse} for text processing.`);
 		}
@@ -175,9 +202,9 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 			console.log('Available memory:', process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE || 'unknown');
 			const startTime = Date.now();
 
-			// Add a timeout wrapper for additional safety
+			// Add a timeout wrapper for additional safety - increased for complex emails
 			const timeoutPromise = new Promise((_, reject) => {
-				setTimeout(() => reject(new Error('Custom timeout after 40 seconds')), 40000);
+				setTimeout(() => reject(new Error('Custom timeout after 90 seconds')), 90000);
 			});
 
 			// Prepare the request parameters
