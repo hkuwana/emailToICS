@@ -32,9 +32,6 @@ importers:
       openai:
         specifier: ^5.1.1
         version: 5.1.1(ws@8.18.2)
-      pdf2json:
-        specifier: ^3.1.6
-        version: 3.1.6
       postgres:
         specifier: ^3.4.5
         version: 3.4.7
@@ -2129,12 +2126,6 @@ packages:
   pathval@2.0.0:
     resolution: {integrity: sha512-vE7JKRyES09KiunauX7nd2Q9/L7lhok4smP9RZTDeD4MVs72Dp2qNFVz39Nz5a0FVEW0BJR6C0DYrq6unoziZA==}
     engines: {node: '>= 14.16'}
-
-  pdf2json@3.1.6:
-    resolution: {integrity: sha512-Nkwo9qeCvqVH0ZgYRUfPyj6o4o7StvNIxMFECeiz4y0uMOVyqc5Y9hjsdFVxdYCeiUjjXLQXA8KIz0iJL3HM0w==}
-    engines: {node: '>=20.18.0'}
-    hasBin: true
-    bundledDependencies: []
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -4483,8 +4474,6 @@ snapshots:
   pathe@2.0.3: {}
 
   pathval@2.0.0: {}
-
-  pdf2json@3.1.6: {}
 
   picocolors@1.1.1: {}
 
