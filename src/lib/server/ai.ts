@@ -171,7 +171,14 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 
 		try {
 			console.log('Starting OpenAI API call with timeout...');
+			console.log('Environment check - running on Vercel:', !!process.env.VERCEL);
+			console.log('Available memory:', process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE || 'unknown');
 			const startTime = Date.now();
+
+			// Add a timeout wrapper for additional safety
+			const timeoutPromise = new Promise((_, reject) => {
+				setTimeout(() => reject(new Error('Custom timeout after 40 seconds')), 40000);
+			});
 
 			// Prepare the request parameters
 			const requestParams: OpenAI.Chat.Completions.ChatCompletionCreateParams = {
@@ -186,7 +193,11 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 				requestParams.temperature = 0.1; // Lower temperature for more consistent results
 			}
 
-			const response = await openai.chat.completions.create(requestParams);
+			const apiCallPromise = openai.chat.completions.create(requestParams);
+			const response = (await Promise.race([
+				apiCallPromise,
+				timeoutPromise
+			])) as OpenAI.Chat.Completions.ChatCompletion;
 
 			const endTime = Date.now();
 			console.log(`OpenAI API call completed in ${endTime - startTime}ms`);
@@ -211,10 +222,20 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 					: 'No first choice'
 			});
 
-			const messageContent = response.choices[0].message.content;
+			const message = response.choices[0].message;
+			let messageContent = message.content;
+
+			// Check if the response is in the refusal field (common with some models)
+			if (!messageContent && message.refusal) {
+				console.log('Response found in refusal field, using that instead');
+				messageContent = message.refusal;
+			}
+
 			if (!messageContent) {
-				console.error('OpenAI response content is null or empty.');
-				console.error('Full message object:', response.choices[0].message);
+				console.error(
+					'OpenAI response content is null or empty in both content and refusal fields.'
+				);
+				console.error('Full message object:', message);
 				return { events: [] };
 			}
 

@@ -8,7 +8,7 @@ import type { PostmarkWebhookPayload } from '$lib/types/postmark';
 // but for production, you'd define a more precise interface for the expected payload.
 // interface PostmarkWebhookPayload { /* ... define expected fields ... */ }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, platform }) => {
 	console.log('Webhook received');
 	try {
 		const payload: PostmarkWebhookPayload = await request.json();
@@ -21,30 +21,53 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		console.log('Webhook received, processing email...');
 
-		// Wait for processing to complete before responding
-		// This ensures the function doesn't get terminated by Vercel
-		try {
-			const result = await processInboundEmail(payload);
-			if (result) {
-				console.log(`Email processing finished for ${result.id}, status: ${result.status}`);
+		// For production: Use waitUntil for background processing to avoid timeouts
+		// For now: Process synchronously to ensure completion
+		if (platform && 'waitUntil' in platform && typeof platform.waitUntil === 'function') {
+			console.log('Using background processing with waitUntil');
+			platform.waitUntil(
+				processInboundEmail(payload)
+					.then((result) => {
+						if (result) {
+							console.log(
+								`Background email processing finished for ${result.id}, status: ${result.status}`
+							);
+						} else {
+							console.log('Background email processing finished, but no record was returned.');
+						}
+					})
+					.catch((error) => {
+						console.error('Error in background processInboundEmail:', error);
+					})
+			);
+			return json({ status: 'accepted', message: 'Email queued for processing' }, { status: 200 });
+		} else {
+			console.log('No waitUntil available, processing synchronously');
+			// Wait for processing to complete before responding
+			// This ensures the function doesn't get terminated by Vercel
+			try {
+				const result = await processInboundEmail(payload);
+				if (result) {
+					console.log(`Email processing finished for ${result.id}, status: ${result.status}`);
+					return json(
+						{ status: 'accepted', message: 'Email processed successfully' },
+						{ status: 200 }
+					);
+				} else {
+					console.log('Email processing finished, but no record was returned.');
+					return json(
+						{ status: 'accepted', message: 'Email processed but no events found' },
+						{ status: 200 }
+					);
+				}
+			} catch (processingError) {
+				console.error('Error in processInboundEmail from webhook:', processingError);
+				// Still return 200 to Postmark so they don't retry
 				return json(
-					{ status: 'accepted', message: 'Email processed successfully' },
-					{ status: 200 }
-				);
-			} else {
-				console.log('Email processing finished, but no record was returned.');
-				return json(
-					{ status: 'accepted', message: 'Email processed but no events found' },
+					{ status: 'error', message: 'Processing failed but webhook accepted' },
 					{ status: 200 }
 				);
 			}
-		} catch (processingError) {
-			console.error('Error in processInboundEmail from webhook:', processingError);
-			// Still return 200 to Postmark so they don't retry
-			return json(
-				{ status: 'error', message: 'Processing failed but webhook accepted' },
-				{ status: 200 }
-			);
 		}
 	} catch (error: unknown) {
 		console.error(

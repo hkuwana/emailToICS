@@ -64,6 +64,14 @@ export async function processInboundEmail(
 
 	try {
 		console.log('About to call extractEventsWithAI...');
+		console.log('Email data being passed to AI:', {
+			id: emailData.id,
+			from: emailData.from,
+			subject: emailData.subject,
+			textBodyLength: emailData.textBody?.length || 0,
+			attachmentCount: emailData.attachments?.length || 0
+		});
+
 		const aiResult = await extractEventsWithAI(emailData);
 		const extractedEvents: ExtractedEvent[] = aiResult.events;
 
