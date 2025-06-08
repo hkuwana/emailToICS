@@ -35,28 +35,49 @@ interface ExtractedEvent {
 
 interface AIResponse {
 	events: ExtractedEvent[];
+	rawResponse?: string; // For debugging
+	model?: string; // For debugging
+	timing?: number; // For debugging
+}
+
+// Helper function to check if model is an o1 variant
+function isO1Model(modelName: string): boolean {
+	return modelName.includes('o1') || modelName.includes('o4-mini');
 }
 
 export async function extractEventsWithAI(emailData: EmailData): Promise<AIResponse> {
-	const mainContent: string = emailData.textBody || '';
-	const imagePayloads: OpenAI.Chat.Completions.ChatCompletionContentPartImage[] = [];
+	try {
+		console.log('=== extractEventsWithAI function started ===');
+		console.log('Email data received:', {
+			hasTextBody: !!emailData.textBody,
+			subject: emailData.subject,
+			attachmentCount: emailData.attachments?.length || 0
+		});
 
-	if (emailData.attachments && emailData.attachments.length > 0) {
-		for (const attachment of emailData.attachments) {
-			if (
-				attachment.ContentType &&
-				attachment.ContentType.startsWith('image/') &&
-				attachment.Content
-			) {
-				imagePayloads.push({
-					type: 'image_url',
-					image_url: {
-						url: `data:${attachment.ContentType};base64,${attachment.Content}`
-					}
-				});
-				console.log(`Prepared image attachment for AI: ${attachment.Name}`);
-			}
-			/*
+		const mainContent: string = emailData.textBody || '';
+		const imagePayloads: OpenAI.Chat.Completions.ChatCompletionContentPartImage[] = [];
+
+		console.log('Main content length:', mainContent.length);
+
+		console.log('Starting attachment processing...');
+		if (emailData.attachments && emailData.attachments.length > 0) {
+			console.log(`Processing ${emailData.attachments.length} attachments`);
+			for (const attachment of emailData.attachments) {
+				console.log(`Processing attachment: ${attachment.Name}, type: ${attachment.ContentType}`);
+				if (
+					attachment.ContentType &&
+					attachment.ContentType.startsWith('image/') &&
+					attachment.Content
+				) {
+					imagePayloads.push({
+						type: 'image_url',
+						image_url: {
+							url: `data:${attachment.ContentType};base64,${attachment.Content}`
+						}
+					});
+					console.log(`Prepared image attachment for AI: ${attachment.Name}`);
+				}
+				/*
 			else if (attachment.ContentType === 'application/pdf' && attachment.Content) {
 				try {
 					const pdfParser = new PDFParser();
@@ -89,32 +110,42 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 				}
 			}
 			*/
+			}
+		} else {
+			console.log('No attachments to process');
 		}
-	}
+		console.log('Attachment processing completed');
 
-	const userMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
-	let modelToUse: string = OPENAI_TEXT_MODEL;
+		const userMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
+		let modelToUse: string = OPENAI_TEXT_MODEL;
 
-	if (imagePayloads.length > 0) {
-		modelToUse = OPENAI_VISION_MODEL;
-		const visionPrompt = `
+		console.log('Model selection and message building...');
+		console.log('OPENAI_TEXT_MODEL:', OPENAI_TEXT_MODEL);
+		console.log('OPENAI_VISION_MODEL:', OPENAI_VISION_MODEL);
+		console.log('Image payloads count:', imagePayloads.length);
+
+		if (imagePayloads.length > 0) {
+			console.log('Using vision model due to image attachments');
+			modelToUse = OPENAI_VISION_MODEL;
+			const visionPrompt = `
       Extract calendar events from the provided email content and/or images.
       Focus on identifying event details like title, start date, end date, location, and description.
       Current time context for relative dates (e.g., "tomorrow"): ${new Date().toISOString()}
       Email Subject: ${emailData.subject || 'N/A'}
     `;
 
-		const contentArray: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
-			{ type: 'text', text: visionPrompt }
-		];
-		if (mainContent.trim()) {
-			contentArray.push({ type: 'text', text: `Email Body / PDF Text:\n${mainContent}` });
-		}
-		contentArray.push(...imagePayloads);
-		userMessages.push({ role: 'user', content: contentArray });
-		console.log(`Using vision model ${modelToUse} for image processing.`);
-	} else {
-		const prompt = `
+			const contentArray: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
+				{ type: 'text', text: visionPrompt }
+			];
+			if (mainContent.trim()) {
+				contentArray.push({ type: 'text', text: `Email Body / PDF Text:\n${mainContent}` });
+			}
+			contentArray.push(...imagePayloads);
+			userMessages.push({ role: 'user', content: contentArray });
+			console.log(`Using vision model ${modelToUse} for image processing.`);
+		} else {
+			console.log('Using text model for text-only processing');
+			const prompt = `
       Extract calendar events from this email content.
       Return a JSON array of objects. Each object should represent an event and include these fields: 
       - title (string)
@@ -130,67 +161,118 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
       Email Body / PDF Text:
       ${mainContent}
     `;
-		userMessages.push({ role: 'user', content: prompt });
-		console.log(`Using text model ${modelToUse} for text processing.`);
-	}
-
-	try {
-		console.log('Starting OpenAI API call with timeout...');
-		const startTime = Date.now();
-
-		const response = await openai.chat.completions.create({
-			model: modelToUse,
-			messages: userMessages,
-			response_format: { type: 'json_object' },
-			max_completion_tokens: 2000, // Reasonable limit for event extraction
-			temperature: 0.1 // Lower temperature for more consistent results
-		});
-
-		const endTime = Date.now();
-		console.log(`OpenAI API call completed in ${endTime - startTime}ms`);
-
-		console.log('OpenAI API call successful.');
-
-		const messageContent = response.choices[0].message.content;
-		if (!messageContent) {
-			console.error('OpenAI response content is null or empty.');
-			return { events: [] };
+			userMessages.push({ role: 'user', content: prompt });
+			console.log(`Using text model ${modelToUse} for text processing.`);
 		}
 
-		console.log('Raw AI response:', messageContent);
-		const parsedJson = JSON.parse(messageContent);
+		console.log('Messages prepared, about to start OpenAI API call...');
+		console.log('Final model to use:', modelToUse);
+		console.log('User messages length:', userMessages.length);
 
-		if (Array.isArray(parsedJson)) {
-			return { events: parsedJson as ExtractedEvent[] };
-		} else if (parsedJson && Array.isArray(parsedJson.events)) {
-			return { events: parsedJson.events as ExtractedEvent[] };
-		} else {
-			console.warn(
-				'AI response was not an array of events or an object with an events array. Attempting to use as single event if valid.',
-				parsedJson
-			);
-			if (parsedJson && parsedJson.title && parsedJson.startDate) {
-				return { events: [parsedJson as ExtractedEvent] };
+		try {
+			console.log('Starting OpenAI API call with timeout...');
+			const startTime = Date.now();
+
+			// Prepare the request parameters
+			const requestParams: OpenAI.Chat.Completions.ChatCompletionCreateParams = {
+				model: modelToUse,
+				messages: userMessages,
+				response_format: { type: 'json_object' },
+				max_completion_tokens: 2000 // Reasonable limit for event extraction
+			};
+
+			// Only add temperature for non-o1 models
+			if (!isO1Model(modelToUse)) {
+				requestParams.temperature = 0.1; // Lower temperature for more consistent results
 			}
-			return { events: [] };
-		}
-	} catch (error: unknown) {
-		console.error('Error calling OpenAI API or parsing response:', error);
 
-		// Check if it's a timeout error
-		if (error instanceof Error) {
-			if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
-				console.error(
-					'OpenAI API call timed out - consider increasing timeout or optimizing prompt'
+			const response = await openai.chat.completions.create(requestParams);
+
+			const endTime = Date.now();
+			console.log(`OpenAI API call completed in ${endTime - startTime}ms`);
+
+			console.log('OpenAI API call successful.');
+
+			// Log the full response structure for debugging
+			console.log('Full OpenAI response structure:', {
+				id: response.id,
+				object: response.object,
+				model: response.model,
+				usage: response.usage,
+				choices_length: response.choices?.length,
+				first_choice: response.choices?.[0]
+					? {
+							index: response.choices[0].index,
+							message_role: response.choices[0].message?.role,
+							message_content_length: response.choices[0].message?.content?.length,
+							message_content_preview: response.choices[0].message?.content?.substring(0, 100),
+							finish_reason: response.choices[0].finish_reason
+						}
+					: 'No first choice'
+			});
+
+			const messageContent = response.choices[0].message.content;
+			if (!messageContent) {
+				console.error('OpenAI response content is null or empty.');
+				console.error('Full message object:', response.choices[0].message);
+				return { events: [] };
+			}
+
+			console.log('Raw AI response (full):', messageContent);
+			const parsedJson = JSON.parse(messageContent);
+
+			const debugInfo = {
+				rawResponse: messageContent,
+				model: modelToUse,
+				timing: endTime - startTime
+			};
+
+			if (Array.isArray(parsedJson)) {
+				console.log('extractEventsWithAI completed successfully!');
+				return { events: parsedJson as ExtractedEvent[], ...debugInfo };
+			} else if (parsedJson && Array.isArray(parsedJson.events)) {
+				console.log('extractEventsWithAI completed successfully!');
+				return { events: parsedJson.events as ExtractedEvent[], ...debugInfo };
+			} else {
+				console.warn(
+					'AI response was not an array of events or an object with an events array. Attempting to use as single event if valid.',
+					parsedJson
 				);
+				if (parsedJson && parsedJson.title && parsedJson.startDate) {
+					console.log('extractEventsWithAI completed successfully!');
+					return { events: [parsedJson as ExtractedEvent], ...debugInfo };
+				}
+				console.log('extractEventsWithAI completed successfully!');
+				return { events: [], ...debugInfo };
 			}
-			console.error('Error details:', {
-				name: error.name,
-				message: error.message,
-				stack: error.stack?.split('\n').slice(0, 3) // First 3 lines of stack trace
+		} catch (error: unknown) {
+			console.error('Error calling OpenAI API or parsing response:', error);
+
+			// Check if it's a timeout error
+			if (error instanceof Error) {
+				if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
+					console.error(
+						'OpenAI API call timed out - consider increasing timeout or optimizing prompt'
+					);
+				}
+				console.error('Error details:', {
+					name: error.name,
+					message: error.message,
+					stack: error.stack?.split('\n').slice(0, 3) // First 3 lines of stack trace
+				});
+			}
+
+			return { events: [] };
+		}
+	} catch (outerError: unknown) {
+		console.error('Error in extractEventsWithAI function before API call:', outerError);
+		if (outerError instanceof Error) {
+			console.error('Outer error details:', {
+				name: outerError.name,
+				message: outerError.message,
+				stack: outerError.stack?.split('\n').slice(0, 5) // First 5 lines of stack trace
 			});
 		}
-
 		return { events: [] };
 	}
 }

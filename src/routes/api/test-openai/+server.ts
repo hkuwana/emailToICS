@@ -55,7 +55,8 @@ Have a great trip!
 			model_used: OPENAI_TEXT_MODEL || 'gpt-3.5-turbo',
 			timestamp: new Date().toISOString(),
 			environment: 'development',
-			sample_data: sampleEmailData
+			sample_data: sampleEmailData,
+			ai_result: result // Include the full AI result for debugging
 		});
 	} catch (err: unknown) {
 		console.error('=== extractEventsWithAI Test Failed ===');
