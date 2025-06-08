@@ -107,6 +107,10 @@ export async function processInboundEmail(
 			}
 		}
 
+		console.log(
+			`ICS content generated successfully for ${eventId}, length: ${icsContent.length} characters`
+		);
+
 		let emailHtmlResponse = `<p>Hello,</p><p>We've processed your email "${emailData.subject || 'your email'}" and found the following event(s):</p><ul>`;
 		extractedEvents.forEach((event) => {
 			const googleCalendarLink = new URL('https://www.google.com/calendar/render');
@@ -132,13 +136,16 @@ export async function processInboundEmail(
 		});
 		emailHtmlResponse += `</ul><p>Please find the .ics calendar file attached.</p><p>Thank you!</p>`;
 
+		console.log(
+			`About to send response email to ${emailData.from} with ${extractedEvents.length} events`
+		);
 		await sendResponseEmail(
 			emailData.from,
 			`Calendar Events from "${emailData.subject || 'your email'}"`,
 			emailHtmlResponse,
 			icsContent
 		);
-		console.log(`Response email sent for ${eventId}.`);
+		console.log(`✅ SUCCESS: Response email with ICS file sent for ${eventId}!`);
 		return { id: eventId, status: 'success' };
 	} catch (processingError: unknown) {
 		console.error(

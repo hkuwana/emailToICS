@@ -1,3 +1,8 @@
 {
-	"framework": "sveltekit"
+	"framework": "sveltekit",
+	"functions": {
+		"src/routes/api/webhook/+server.ts": {
+			"maxDuration": 300
+		}
+	}
 }
