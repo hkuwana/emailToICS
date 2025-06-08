@@ -1,6 +1,6 @@
 import { extractEventsWithAI } from './ai.js';
 import { generateICS } from './calendar.js';
-import { sendResponseEmail } from './postmark.js';
+import { sendResponseEmail, sendNoEventsFoundEmail } from './postmark.js';
 import { v4 as uuidv4 } from 'uuid';
 // Define types locally since they're not in a shared types file
 interface ExtractedEvent {
@@ -77,8 +77,15 @@ export async function processInboundEmail(
 
 		if (!extractedEvents || extractedEvents.length === 0) {
 			console.log(`No events extracted by AI for ${eventId}.`);
-			// Optionally send an email informing the user that no events were found
-			return;
+			// Send email informing the user that no events were found
+			try {
+				await sendNoEventsFoundEmail(emailData.from, emailData.subject);
+				console.log(`No events found email sent for ${eventId}.`);
+				return { id: eventId, status: 'no_events_found' };
+			} catch (emailError) {
+				console.error(`Failed to send no events found email for ${eventId}:`, emailError);
+				return { id: eventId, status: 'no_events_found_email_failed' };
+			}
 		}
 
 		console.log(`AI extracted ${extractedEvents.length} event(s) for ${eventId}.`);
@@ -86,8 +93,18 @@ export async function processInboundEmail(
 		const icsContent = generateICS(extractedEvents);
 		if (!icsContent) {
 			console.warn(`ICS generation returned null for ${eventId}.`);
-			// Optionally send an email about the failure
-			return;
+			// Send email about the failure - treat similar to no events found
+			try {
+				await sendNoEventsFoundEmail(emailData.from, emailData.subject);
+				console.log(`No events found email sent due to ICS generation failure for ${eventId}.`);
+				return { id: eventId, status: 'ics_generation_failed' };
+			} catch (emailError) {
+				console.error(
+					`Failed to send no events found email after ICS failure for ${eventId}:`,
+					emailError
+				);
+				return { id: eventId, status: 'ics_generation_failed_email_failed' };
+			}
 		}
 
 		let emailHtmlResponse = `<p>Hello,</p><p>We've processed your email "${emailData.subject || 'your email'}" and found the following event(s):</p><ul>`;
@@ -122,6 +139,7 @@ export async function processInboundEmail(
 			icsContent
 		);
 		console.log(`Response email sent for ${eventId}.`);
+		return { id: eventId, status: 'success' };
 	} catch (processingError: unknown) {
 		console.error(
 			`Error during processing for event ${eventId}:`,
@@ -129,6 +147,7 @@ export async function processInboundEmail(
 		);
 		// Since there's no database, we can't store the error state.
 		// Consider sending an error email to the user.
+		return { id: eventId, status: 'processing_error' };
 	}
 }
 

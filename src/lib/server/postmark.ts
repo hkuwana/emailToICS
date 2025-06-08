@@ -47,6 +47,50 @@ export async function sendResponseEmail(
 	}
 }
 
+export async function sendNoEventsFoundEmail(
+	to: string,
+	originalSubject?: string
+): Promise<postmark.Models.MessageSendingResponse> {
+	try {
+		const subject = `Re: ${originalSubject || 'Your email'} - No Events Found`;
+		const htmlBody = `
+			<p>Hello,</p>
+			<p>I processed your email "${originalSubject || 'your email'}" but couldn't find any calendar events to extract.</p>
+			<p>This could happen if:</p>
+			<ul>
+				<li>The email doesn't contain clear date/time information</li>
+				<li>The event details are in an unsupported format</li>
+				<li>The text is unclear or ambiguous</li>
+			</ul>
+			<p>Please try:</p>
+			<ul>
+				<li>Forwarding the original itinerary/confirmation email</li>
+				<li>Including clearer date, time, and event information</li>
+				<li>Replying to this email with more details</li>
+			</ul>
+			<p>If you continue having issues, feel free to email me directly for assistance @ hiro@trykaiwa.com .</p>
+			<p>Thanks!</p>
+		`;
+
+		const message: postmark.Models.Message = {
+			From: SENDER_EMAIL_ADDRESS || 'events@voxlify.com',
+			To: to,
+			Subject: subject,
+			HtmlBody: htmlBody
+		};
+
+		const result = await client.sendEmail(message);
+		console.log('No events found email sent successfully:', result);
+		return result;
+	} catch (error: unknown) {
+		console.error(
+			'Failed to send no events found email:',
+			error instanceof Error ? error.message : error
+		);
+		throw error;
+	}
+}
+
 // Placeholder for webhook validation logic
 // Postmark payload can be complex, using 'any' for now for MVP
 export function validatePostmarkWebhook(payload: PostmarkWebhookPayload): boolean {
