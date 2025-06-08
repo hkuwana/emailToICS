@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import PDFParser from 'pdf2json';
+// import PDFParser from 'pdf2json';
 import { OPENAI_API_KEY, OPENAI_TEXT_MODEL, OPENAI_VISION_MODEL } from '$env/static/private';
 
 const openai = new OpenAI({
@@ -37,7 +37,7 @@ interface AIResponse {
 }
 
 export async function extractEventsWithAI(emailData: EmailData): Promise<AIResponse> {
-	let mainContent: string = emailData.textBody || '';
+	const mainContent: string = emailData.textBody || '';
 	const imagePayloads: OpenAI.Chat.Completions.ChatCompletionContentPartImage[] = [];
 
 	if (emailData.attachments && emailData.attachments.length > 0) {
@@ -54,7 +54,9 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 					}
 				});
 				console.log(`Prepared image attachment for AI: ${attachment.Name}`);
-			} else if (attachment.ContentType === 'application/pdf' && attachment.Content) {
+			}
+			/*
+			else if (attachment.ContentType === 'application/pdf' && attachment.Content) {
 				try {
 					const pdfParser = new PDFParser();
 					const pdfBuffer = Buffer.from(attachment.Content, 'base64');
@@ -85,6 +87,7 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 					mainContent += `\n\n--- Failed to process PDF Attachment: ${attachment.Name} ---`;
 				}
 			}
+			*/
 		}
 	}
 
@@ -131,11 +134,16 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 	}
 
 	try {
-		const response = await openai.chat.completions.create({
-			model: modelToUse,
-			messages: userMessages,
-			response_format: { type: 'json_object' }
-		});
+		const response = await openai.chat.completions.create(
+			{
+				model: modelToUse,
+				messages: userMessages,
+				response_format: { type: 'json_object' }
+			},
+			{
+				timeout: 14000 // 14 seconds, just under Vercel's 15s Hobby timeout
+			}
+		);
 
 		console.log('OpenAI API call successful.');
 
