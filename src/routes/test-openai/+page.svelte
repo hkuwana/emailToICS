@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { onMount } from 'svelte';
+	import { PUBLIC_TEST_EMAIL } from '$env/static/public';
 
 	let isLoading = $state(false);
 	let result = $state('');
 	let error = $state('');
-	let testEmail = $state(TEST_EMAIL);
+	let testEmail = $state(PUBLIC_TEST_EMAIL);
 
 	// Redirect to homepage if not in development
 	onMount(() => {

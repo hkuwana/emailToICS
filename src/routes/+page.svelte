@@ -29,6 +29,32 @@
 			<p class="text-xl text-gray-700">Forward your itinerary email, get a calendar file back.</p>
 		</div>
 
+		<!-- Service Status Notice -->
+		<div class="mb-8 rounded-lg bg-amber-50 border-l-4 border-amber-400 p-6">
+			<div class="flex items-start">
+				<div class="flex-shrink-0">
+					<span class="text-amber-400 text-xl">⏳</span>
+				</div>
+				<div class="ml-3">
+					<h3 class="text-lg font-medium text-amber-800">Service Under Review</h3>
+					<div class="mt-2 text-sm text-amber-700">
+						<p class="mb-2">
+							EmailCal is currently awaiting email service approval from our provider. 
+							The AI extraction and calendar generation features are fully functional, but email delivery is temporarily limited.
+						</p>
+						<p class="font-medium">
+							🔔 We'll update this page once the review is complete and full email functionality is restored.
+						</p>
+					</div>
+					<div class="mt-3">
+						<p class="text-xs text-amber-600">
+							Expected timeline: 1-3 business days • Last updated: June 9, 2025
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<div class="grid gap-8 lg:grid-cols-2">
 			<!-- Left Side: How it works -->
 			<div class="space-y-6">
@@ -61,7 +87,7 @@
 				</div>
 
 				<!-- Email Input -->
-				<div class="rounded-lg bg-blue-600 p-6 text-center text-gray-300">
+				<div class="rounded-lg bg-gray-400 p-6 text-center text-gray-300">
 					<h2 class="mb-3 text-lg font-semibold">Send your itinerary to:</h2>
 					<div class="bg-opacity-20 mb-3 rounded-lg bg-white p-3">
 						<input
@@ -69,10 +95,10 @@
 							readonly
 							bind:value={displayAddress}
 							onclick={selectEmail}
-							class="w-full cursor-pointer border-none bg-transparent text-center font-mono text-sm text-gray-900 outline-none focus:outline-none"
+							class="w-full cursor-pointer border-none bg-transparent text-center font-mono text-sm text-gray-700 outline-none focus:outline-none"
 						/>
 					</div>
-					<p class="text-xs opacity-90">Click to copy • Currently supports plain text emails</p>
+					<p class="text-xs opacity-90">Click to copy • ⚠️ Email responses temporarily limited during review</p>
 				</div>
 
 				<!-- Future Features Notice -->

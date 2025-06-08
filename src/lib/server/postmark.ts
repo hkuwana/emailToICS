@@ -2,9 +2,24 @@ import * as postmark from 'postmark';
 import type { PostmarkWebhookPayload } from '$lib/types/postmark';
 import { POSTMARK_SERVER_TOKEN, SENDER_EMAIL_ADDRESS, WEBHOOK_SECRET } from '$env/static/private';
 
+// Debug environment variables (don't log the full token for security)
+console.log('Postmark Environment Check:', {
+	hasServerToken: !!POSTMARK_SERVER_TOKEN,
+	tokenLength: POSTMARK_SERVER_TOKEN?.length || 0,
+	tokenPrefix: POSTMARK_SERVER_TOKEN?.substring(0, 8) || 'NONE',
+	hasSenderEmail: !!SENDER_EMAIL_ADDRESS,
+	senderEmail: SENDER_EMAIL_ADDRESS
+});
+
 // Initialize Postmark client
 // Ensure POSTMARK_SERVER_TOKEN is set in your environment variables
-const client = new postmark.ServerClient(POSTMARK_SERVER_TOKEN || '');
+if (!POSTMARK_SERVER_TOKEN) {
+	console.error('❌ POSTMARK_SERVER_TOKEN is not set in environment variables!');
+	console.error('Required token format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx');
+	throw new Error('POSTMARK_SERVER_TOKEN environment variable is required');
+}
+
+const client = new postmark.ServerClient(POSTMARK_SERVER_TOKEN);
 
 export default client;
 
