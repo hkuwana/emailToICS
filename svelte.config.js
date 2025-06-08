@@ -6,10 +6,12 @@ const config = {
 	preprocess: [vitePreprocess(), mdsvex()],
 	kit: {
 		adapter: adapter({
-			runtime: 'nodejs18.x',
-			regions: ['iad1'],
-			maxDuration: 60,
-			memory: 1024
+			functions: {
+				'**': {
+					maxDuration: 60,
+					memory: 1024
+				}
+			}
 		})
 	},
 	extensions: ['.svelte', '.svx']
