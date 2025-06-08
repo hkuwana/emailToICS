@@ -72,23 +72,34 @@ export async function processInboundEmail(
 			attachmentCount: emailData.attachments?.length || 0
 		});
 
+		console.log('🚀 STARTING AI EXTRACTION...');
+		const aiStartTime = Date.now();
 		const aiResult = await extractEventsWithAI(emailData);
+		const aiEndTime = Date.now();
+		console.log(`🏁 AI EXTRACTION COMPLETED in ${aiEndTime - aiStartTime}ms`);
+
 		const extractedEvents: ExtractedEvent[] = aiResult.events;
+		console.log('AI Result:', {
+			eventsCount: extractedEvents?.length || 0,
+			events: extractedEvents,
+			model: aiResult.model,
+			timing: aiResult.timing
+		});
 
 		if (!extractedEvents || extractedEvents.length === 0) {
-			console.log(`No events extracted by AI for ${eventId}.`);
+			console.log(`❌ No events extracted by AI for ${eventId}.`);
 			// Send email informing the user that no events were found
 			try {
 				await sendNoEventsFoundEmail(emailData.from, emailData.subject);
-				console.log(`No events found email sent for ${eventId}.`);
+				console.log(`📧 No events found email sent for ${eventId}.`);
 				return { id: eventId, status: 'no_events_found' };
 			} catch (emailError) {
-				console.error(`Failed to send no events found email for ${eventId}:`, emailError);
+				console.error(`❌ Failed to send no events found email for ${eventId}:`, emailError);
 				return { id: eventId, status: 'no_events_found_email_failed' };
 			}
 		}
 
-		console.log(`AI extracted ${extractedEvents.length} event(s) for ${eventId}.`);
+		console.log(`✅ AI extracted ${extractedEvents.length} event(s) for ${eventId}.`);
 
 		const icsContent = generateICS(extractedEvents);
 		if (!icsContent) {

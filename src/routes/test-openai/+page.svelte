@@ -2,9 +2,10 @@
 	import { dev } from '$app/environment';
 	import { onMount } from 'svelte';
 
-	let isLoading = false;
-	let result = '';
-	let error = '';
+	let isLoading = $state(false);
+	let result = $state('');
+	let error = $state('');
+	let testEmail = $state(TEST_EMAIL);
 
 	// Redirect to homepage if not in development
 	onMount(() => {
@@ -25,7 +26,10 @@
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
-				}
+				},
+				body: JSON.stringify({
+					testEmail: testEmail.trim() || undefined
+				})
 			});
 
 			const data = await response.json();
@@ -53,6 +57,20 @@
 		<p class="warning">
 			This page tests the actual AI function used in production. Only available in development mode.
 		</p>
+
+		<div class="form-section">
+			<label for="email">Test Email (optional):</label>
+			<input
+				id="email"
+				type="email"
+				bind:value={testEmail}
+				placeholder="your-email@example.com"
+				class="email-input"
+			/>
+			<p class="help-text">
+				If provided, the system will send you the actual email with ICS file (if events are found) or a "no events found" email.
+			</p>
+		</div>
 
 		<button on:click={testOpenAI} disabled={isLoading} class="test-button">
 			{#if isLoading}
@@ -99,6 +117,38 @@
 		padding: 1rem;
 		border-radius: 4px;
 		margin-bottom: 2rem;
+	}
+
+	.form-section {
+		margin-bottom: 2rem;
+	}
+
+	.form-section label {
+		display: block;
+		margin-bottom: 0.5rem;
+		font-weight: 600;
+		color: #333;
+	}
+
+	.email-input {
+		width: 100%;
+		padding: 0.75rem;
+		border: 1px solid #ddd;
+		border-radius: 4px;
+		font-size: 1rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.email-input:focus {
+		outline: none;
+		border-color: #007bff;
+		box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+	}
+
+	.help-text {
+		color: #666;
+		font-size: 0.9rem;
+		margin: 0;
 	}
 
 	.test-button {
