@@ -5,6 +5,10 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+	define: {
+		'process.env.KV_REST_API_URL': JSON.stringify(process.env.KV_REST_API_URL),
+		'process.env.KV_REST_API_TOKEN': JSON.stringify(process.env.KV_REST_API_TOKEN)
+	},
 	plugins: [
 		tailwindcss(),
 		sveltekit(),
@@ -13,6 +17,7 @@ export default defineConfig({
 			outdir: './src/lib/paraglide'
 		})
 	],
+	envDir: '..',
 	ssr: {
 		noExternal: ['@vercel/kv']
 	},
