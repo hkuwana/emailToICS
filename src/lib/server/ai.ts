@@ -137,6 +137,8 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 			response_format: { type: 'json_object' }
 		});
 
+		console.log('OpenAI API call successful.');
+
 		const messageContent = response.choices[0].message.content;
 		if (!messageContent) {
 			console.error('OpenAI response content is null or empty.');
@@ -161,10 +163,7 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 			return { events: [] };
 		}
 	} catch (error: unknown) {
-		console.error(
-			'Error calling OpenAI API or parsing response:',
-			error instanceof Error ? error.message : error
-		);
+		console.error('Error calling OpenAI API or parsing response:', error);
 		return { events: [] };
 	}
 }
