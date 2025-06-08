@@ -141,7 +141,26 @@ export async function processInboundEmail(
 
 		let emailHtmlResponse = `<p>Hello,</p><p>We've processed your email "${emailData.subject || 'your email'}" and found the following event(s):</p><ul>`;
 		extractedEvents.forEach((event) => {
-			emailHtmlResponse += `<li><b>${event.title}</b>: ${new Date(event.startDate).toLocaleString()} - ${new Date(event.endDate).toLocaleString()}</li>`;
+			const googleCalendarLink = new URL('https://www.google.com/calendar/render');
+			googleCalendarLink.searchParams.append('action', 'TEMPLATE');
+			googleCalendarLink.searchParams.append('text', event.title);
+			const startDate = new Date(event.startDate).toISOString().replace(/-|:|\.\d{3}/g, '');
+			const endDate = new Date(event.endDate).toISOString().replace(/-|:|\.\d{3}/g, '');
+			googleCalendarLink.searchParams.append('dates', `${startDate}/${endDate}`);
+			if (event.location) {
+				googleCalendarLink.searchParams.append('location', event.location);
+			}
+			if (event.description) {
+				googleCalendarLink.searchParams.append('details', event.description);
+			}
+			if (event.timezone) {
+				googleCalendarLink.searchParams.append('ctz', event.timezone);
+			}
+
+			emailHtmlResponse += `<li>
+				<b>${event.title}</b>: ${new Date(event.startDate).toLocaleString()} - ${new Date(event.endDate).toLocaleString()}
+				<br><a href="${googleCalendarLink.toString()}" target="_blank">Add to Google Calendar</a>
+			</li>`;
 		});
 		emailHtmlResponse += `</ul><p>Please find the .ics calendar file attached.</p><p>Thank you!</p>`;
 

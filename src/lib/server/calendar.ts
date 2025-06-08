@@ -8,11 +8,11 @@ import type { ExtractedEvent } from '$lib/types/eventRecord';
  */
 function dateToArray(date: Date): [number, number, number, number, number] {
 	return [
-		date.getFullYear(),
-		date.getMonth() + 1,
-		date.getDate(),
-		date.getHours(),
-		date.getMinutes()
+		date.getUTCFullYear(),
+		date.getUTCMonth() + 1,
+		date.getUTCDate(),
+		date.getUTCHours(),
+		date.getUTCMinutes()
 	];
 }
 
@@ -40,14 +40,22 @@ export function generateICS(events: ExtractedEvent[]): string | null {
 				return null;
 			}
 
-			return {
+			const icsEvent: EventAttributes = {
 				title: event.title,
 				start: dateToArray(startDate),
 				end: dateToArray(endDate),
+				startInputType: 'utc',
+				endInputType: 'utc',
 				location: event.location,
 				description: event.description,
 				status: 'CONFIRMED'
-			} as EventAttributes;
+			};
+
+			if (event.timezone) {
+				icsEvent.tzid = event.timezone;
+			}
+
+			return icsEvent;
 		})
 		.filter((e): e is EventAttributes => e !== null);
 

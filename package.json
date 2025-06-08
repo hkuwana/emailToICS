@@ -31,7 +31,6 @@
 		"@testing-library/jest-dom": "^6.6.3",
 		"@testing-library/svelte": "^5.2.4",
 		"@types/node": "^20",
-		"@types/pdf-parse": "^1.1.5",
 		"drizzle-kit": "^0.30.2",
 		"eslint": "^9.18.0",
 		"eslint-config-prettier": "^10.0.1",
@@ -59,6 +58,7 @@
 		"drizzle-orm": "^0.40.0",
 		"ics": "^3.8.1",
 		"openai": "^5.1.1",
+		"pdf2json": "^3.1.6",
 		"postgres": "^3.4.5",
 		"postmark": "^4.0.5",
 		"uuid": "^11.1.0"

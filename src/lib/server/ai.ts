@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import PDFParser from 'pdf2json';
 import { OPENAI_API_KEY, OPENAI_TEXT_MODEL, OPENAI_VISION_MODEL } from '$env/static/private';
 
 const openai = new OpenAI({
@@ -53,9 +54,28 @@ export async function extractEventsWithAI(emailData: EmailData): Promise<AIRespo
 					}
 				});
 				console.log(`Prepared image attachment for AI: ${attachment.Name}`);
-			} else if (attachment.ContentType === 'application/pdf') {
-				console.log(`Ignoring PDF attachment: ${attachment.Name}`);
-				mainContent += `\n\n--- PDF Attachment Ignored: ${attachment.Name} ---`;
+			} else if (attachment.ContentType === 'application/pdf' && attachment.Content) {
+				try {
+					const pdfParser = new PDFParser(this, 1);
+					const pdfBuffer = Buffer.from(attachment.Content, 'base64');
+
+					const pdfText = await new Promise<string>((resolve, reject) => {
+						pdfParser.on('pdfParser_dataError', (errData) => {
+							console.error(`Error parsing PDF ${attachment.Name}:`, errData.parserError);
+							reject(new Error(errData.parserError));
+						});
+						pdfParser.on('pdfParser_dataReady', () => {
+							resolve(pdfParser.getRawTextContent());
+						});
+						pdfParser.parseBuffer(pdfBuffer);
+					});
+
+					mainContent += `\n\n--- PDF Attachment Content: ${attachment.Name} ---\n${pdfText}`;
+					console.log(`Extracted text from PDF attachment: ${attachment.Name}`);
+				} catch (pdfError) {
+					console.error(`Failed to process PDF attachment ${attachment.Name}:`, pdfError);
+					mainContent += `\n\n--- Failed to process PDF Attachment: ${attachment.Name} ---`;
+				}
 			}
 		}
 	}
