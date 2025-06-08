@@ -20,20 +20,32 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		console.log('Webhook received, processing email...');
-		// No await here, to respond to Postmark quickly.
-		processInboundEmail(payload)
-			.then((result) => {
-				if (result) {
-					console.log(`Async email processing finished for ${result.id}, status: ${result.status}`);
-				} else {
-					console.log('Async email processing finished, but no record was returned.');
-				}
-			})
-			.catch((error) => {
-				console.error('Error in async processInboundEmail from webhook:', error);
-			});
 
-		return json({ status: 'accepted' }, { status: 200 });
+		// Wait for processing to complete before responding
+		// This ensures the function doesn't get terminated by Vercel
+		try {
+			const result = await processInboundEmail(payload);
+			if (result) {
+				console.log(`Email processing finished for ${result.id}, status: ${result.status}`);
+				return json(
+					{ status: 'accepted', message: 'Email processed successfully' },
+					{ status: 200 }
+				);
+			} else {
+				console.log('Email processing finished, but no record was returned.');
+				return json(
+					{ status: 'accepted', message: 'Email processed but no events found' },
+					{ status: 200 }
+				);
+			}
+		} catch (processingError) {
+			console.error('Error in processInboundEmail from webhook:', processingError);
+			// Still return 200 to Postmark so they don't retry
+			return json(
+				{ status: 'error', message: 'Processing failed but webhook accepted' },
+				{ status: 200 }
+			);
+		}
 	} catch (error: unknown) {
 		console.error(
 			'Webhook handler synchronous error:',

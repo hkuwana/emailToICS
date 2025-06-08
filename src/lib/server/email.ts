@@ -2,7 +2,20 @@ import { extractEventsWithAI } from './ai.js';
 import { generateICS } from './calendar.js';
 import { sendResponseEmail } from './postmark.js';
 import { v4 as uuidv4 } from 'uuid';
-import type { EventRecord, ExtractedEvent } from '$lib/types/eventRecord';
+// Define types locally since they're not in a shared types file
+interface ExtractedEvent {
+	title: string;
+	startDate: string;
+	endDate: string;
+	location?: string;
+	description?: string;
+	timezone?: string;
+}
+
+interface EventRecord {
+	id: string;
+	status: string;
+}
 import type {
 	PostmarkWebhookPayload,
 	PostmarkAttachment as WebhookPostmarkAttachment
@@ -33,6 +46,9 @@ export async function processInboundEmail(
 		return;
 	}
 	console.log('Processing inbound email from:', fromEmail);
+	console.log('Email subject:', postmarkPayload.Subject);
+	console.log('Text body length:', postmarkPayload.TextBody?.length || 0);
+	console.log('Attachments count:', postmarkPayload.Attachments?.length || 0);
 	const eventId = `evt_${uuidv4()}`;
 
 	const emailData: EmailDataForAI = {
@@ -47,6 +63,7 @@ export async function processInboundEmail(
 	};
 
 	try {
+		console.log('About to call extractEventsWithAI...');
 		const aiResult = await extractEventsWithAI(emailData);
 		const extractedEvents: ExtractedEvent[] = aiResult.events;
 
